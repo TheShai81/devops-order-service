@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  order-service:
+    build: .
+    image: shaileshbolduc/order-service:1.0.0
+    ports:
+      - "20002:20002"
+    environment:
+      DB_HOST: host.docker.internal
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_PORT: ${DB_PORT}
+
+  security-scan:
+    image: aquasec/trivy:latest
+    depends_on:
+      - order-service
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: image shaileshbolduc/order-service:1.0.0

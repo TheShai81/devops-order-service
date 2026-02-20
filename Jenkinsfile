@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "shaileshbolduc/frontend-service"
+        IMAGE_NAME = "shaileshbolduc/order-service"
         TAG = "build-${BUILD_NUMBER}"
     }
 

@@ -1,8 +1,10 @@
 import os
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 import mysql.connector
 from mysql.connector import Error
 from dotenv import load_dotenv
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+import time
 
 load_dotenv()
 
@@ -16,9 +18,50 @@ DB_CONFIG = {
     "port": os.getenv("DB_PORT")
 }
 
+REQUEST_COUNT = Counter(
+    'http_requests_total',
+    'Total HTTP requests',
+    ['method', 'endpoint', 'status']
+)
+
+REQUEST_LATENCY = Histogram(
+    'http_request_duration_seconds',
+    'HTTP request latency in seconds',
+    ['method', 'endpoint']
+)
+
 
 def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
+
+
+@order_bp.before_request
+def before_request():
+    request._start_time = time.time()
+
+@order_bp.after_request
+def after_request(response):
+    endpoint = request.path
+    method = request.method
+    status = response.status_code
+
+    REQUEST_COUNT.labels(
+        method=method,
+        endpoint=endpoint,
+        status=status
+    ).inc()
+
+    if hasattr(request, '_start_time'):
+        REQUEST_LATENCY.labels(
+            method=method,
+            endpoint=endpoint
+        ).observe(time.time() - request._start_time)
+
+    return response
+
+@order_bp.route('/metrics')
+def metrics():
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 
 @order_bp.route("/orders", methods=["GET"])
